@@ -1,0 +1,3 @@
+serverless:
+  network_connectivity_config_id: "<ncc-uuid-from-account-regional-output>"
+  network_policy_id: "<network-policy-id-from-account-regional-output>"

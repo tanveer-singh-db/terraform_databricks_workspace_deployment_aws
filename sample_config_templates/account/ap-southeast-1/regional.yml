@@ -1,0 +1,21 @@
+# databricks_account_id comes from the Databricks Accounts Console, not CloudFormation.
+databricks_account_id: "<databricks-account-uuid>"
+region: ap-southeast-1
+metastore:
+  create: true
+  name: "<metastore-name>"
+  owner: "<metastore-owner>"
+  storage_root: null
+  # For an existing metastore, set create: false and metastore_id to its UUID.
+network_connectivity_configs:
+  - name: "<ncc-name>"
+    private_endpoint_rules: []
+network_policies:
+  - network_policy_id: "<network-policy-id>"
+    restriction_mode: RESTRICTED_ACCESS
+    # Provider-supported values are DRY_RUN or ENFORCED.
+    enforcement_mode: DRY_RUN
+    allowed_internet_destinations: [pypi.org, files.pythonhosted.org]
+    allowed_storage_destinations:
+      - bucket_name: "<allowed-s3-bucket>"
+        region: ap-southeast-1

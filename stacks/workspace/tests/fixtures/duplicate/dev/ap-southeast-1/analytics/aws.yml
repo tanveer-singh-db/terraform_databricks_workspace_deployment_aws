@@ -1,0 +1,12 @@
+aws:
+  account_id: "111122223333"
+  cross_account_role_arn: arn:aws:iam::111122223333:role/test
+  root_bucket_name: test-root
+  network:
+    vpc_id: vpc-0123456789abcdef0
+    subnet_ids: [subnet-0123456789abcdef0, subnet-0123456789abcdef1]
+    security_group_ids: [sg-0123456789abcdef0]
+  privatelink:
+    backend_rest_vpce_id: vpce-0123456789abcdef0
+    backend_relay_vpce_id: vpce-0123456789abcdef1
+    frontend_rest_vpce_id: vpce-0123456789abcdef2

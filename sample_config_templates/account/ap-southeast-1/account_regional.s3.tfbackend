@@ -1,0 +1,5 @@
+bucket       = "<terraform-state-s3-bucket>"
+key          = "databricks-aws-workspace/account/ap-southeast-1/regional.tfstate"
+region       = "ap-southeast-1"
+encrypt      = true
+use_lockfile = true

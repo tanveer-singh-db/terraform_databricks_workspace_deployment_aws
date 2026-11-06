@@ -1,0 +1,9 @@
+workspace_access:
+  deployment_service_principal_application_id: "<deployment-service-principal-application-id>"
+  groups:
+    - name: "<workspace-admin-group>"
+      permissions: [ADMIN]
+    - name: "<workspace-user-group>"
+      permissions: [USER]
+  users: []
+  service_principals: []

@@ -1,0 +1,2 @@
+serverless:
+  network_policy_id: default-policy

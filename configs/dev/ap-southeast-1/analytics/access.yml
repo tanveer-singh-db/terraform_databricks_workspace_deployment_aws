@@ -1,0 +1,9 @@
+workspace_access:
+  deployment_service_principal_application_id: "00000000-0000-0000-0000-000000000004"
+  groups:
+    - name: dbx-dev-analytics-admins
+      permissions: [ADMIN]
+    - name: dbx-dev-analytics-users
+      permissions: [USER]
+  users: []
+  service_principals: []

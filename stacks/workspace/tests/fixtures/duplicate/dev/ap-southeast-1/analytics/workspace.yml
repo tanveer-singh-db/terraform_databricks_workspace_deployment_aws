@@ -1,0 +1,11 @@
+databricks_account_id: "00000000-0000-0000-0000-000000000001"
+workspace:
+  name: duplicate-test
+  deployment_name: null
+  aws_region: ap-southeast-1
+  custom_tags: {}
+private_access:
+  public_access_enabled: false
+  private_access_level: ENDPOINT
+unity_catalog:
+  metastore_id: "00000000-0000-0000-0000-000000000002"

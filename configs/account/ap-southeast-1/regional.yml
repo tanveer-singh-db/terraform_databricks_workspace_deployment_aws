@@ -1,0 +1,22 @@
+databricks_account_id: "00000000-0000-0000-0000-000000000001"
+region: ap-southeast-1
+metastore:
+  create: true
+  name: apse1-metastore
+  owner: dbx-metastore-admins
+  storage_root: null
+network_connectivity_configs:
+  - name: apse1-ncc
+    private_endpoint_rules: []
+network_policies:
+  - network_policy_id: dev-restricted
+    restriction_mode: RESTRICTED_ACCESS
+    enforcement_mode: DRY_RUN
+    allowed_internet_destinations:
+      - pypi.org
+      - files.pythonhosted.org
+      - repo1.maven.org
+      - cran.r-project.org
+    allowed_storage_destinations:
+      - bucket_name: dbx-dev-landing
+        region: ap-southeast-1

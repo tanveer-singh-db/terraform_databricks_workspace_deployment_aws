@@ -1,0 +1,12 @@
+# databricks_account_id comes from the Databricks Accounts Console.
+databricks_account_id: "<databricks-account-uuid>"
+workspace:
+  name: "<workspace-name>"
+  deployment_name: null
+  aws_region: ap-southeast-1
+  custom_tags: { Env: dev, CostCenter: "1234" }
+private_access:
+  public_access_enabled: false
+  private_access_level: ENDPOINT
+unity_catalog:
+  metastore_id: "<metastore-uuid-from-account-regional-output>"

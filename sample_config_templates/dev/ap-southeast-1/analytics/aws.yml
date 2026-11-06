@@ -1,0 +1,18 @@
+aws:
+  # CloudFormation output AWSAccountId.
+  account_id: "<aws-account-id>"
+  # CloudFormation output CrossAccountRoleArn.
+  cross_account_role_arn: "<cross-account-role-arn>"
+  # CloudFormation output RootBucketName.
+  root_bucket_name: "<root-bucket-name>"
+  network:
+    # CloudFormation outputs WorkspaceVpcId, WorkspaceSubnetIds, WorkspaceSecurityGroupIds.
+    vpc_id: "<workspace-vpc-id>"
+    subnet_ids: ["<workspace-private-subnet-a-id>", "<workspace-private-subnet-b-id>"]
+    security_group_ids: ["<workspace-security-group-id>"]
+  privatelink:
+    # CloudFormation outputs BackendRestVpcEndpointId, BackendRelayVpcEndpointId,
+    # and FrontendRestVpcEndpointId (transit/hub endpoint for UI/API).
+    backend_rest_vpce_id: "<backend-rest-vpc-endpoint-id>"
+    backend_relay_vpce_id: "<backend-relay-vpc-endpoint-id>"
+    frontend_rest_vpce_id: "<frontend-rest-vpc-endpoint-id>"

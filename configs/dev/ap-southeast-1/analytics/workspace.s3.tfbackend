@@ -1,0 +1,5 @@
+bucket       = "replace-with-terraform-state-bucket"
+key          = "databricks-aws-workspace/dev/ap-southeast-1/analytics/workspace.tfstate"
+region       = "ap-southeast-1"
+encrypt      = true
+use_lockfile = true

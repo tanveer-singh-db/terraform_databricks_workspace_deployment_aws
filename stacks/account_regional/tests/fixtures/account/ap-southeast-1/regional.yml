@@ -1,0 +1,7 @@
+databricks_account_id: "00000000-0000-0000-0000-000000000001"
+region: ap-southeast-1
+metastore:
+  create: false
+  metastore_id: existing-metastore-id
+network_connectivity_configs: []
+network_policies: []
