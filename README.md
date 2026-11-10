@@ -7,44 +7,112 @@ The sample is a classic (hybrid) Enterprise workspace with backend and frontend 
 ## Architecture and ownership
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
 flowchart TB
-    subgraph AWS["AWS account - owned by CloudFormation"]
-        direction TB
+    USERS["Users and Terraform runner<br/>on the private network"]:::external
+
+    subgraph AWS["AWS account · owned by CloudFormation"]
+        subgraph HUB["Hub VPC"]
+            FE_VPCE["Front-end REST VPC endpoint<br/>Assumption: hub or transit VPC"]:::endpoint
+            FW["Network firewall"]:::gateway
+        end
+        TGW["Transit Gateway"]:::gateway
         subgraph SPOKE["Spoke VPC"]
-            SUBNETS["Private subnets"]
-            SG["Security group"]
-            BE_VPCE["Backend VPC endpoints<br/>REST API + SCC relay"]
+            subgraph SUBNETS["Private subnets · security group"]
+                CLASSIC["Classic compute clusters<br/>no public IP"]:::compute
+            end
+            BE_VPCE["Back-end VPC endpoints<br/>REST API · SCC relay"]:::endpoint
         end
-        subgraph HUB["Hub / transit VPC"]
-            FW["Network firewall"]
-            FE_VPCE["Frontend REST VPC endpoint<br/>UI and API access"]
-        end
-        TGW["Transit Gateway"]
-        BUCKET["Root S3 bucket"]
-        ROLE["Cross-account IAM role"]
-        SPOKE <--> TGW <--> HUB
+        BUCKET["Root S3 bucket"]:::storage
+        ROLE["Cross-account IAM role"]:::identity
     end
 
-    YAML[/"Literal IDs in aws.yml"/]
-    AWS -. "CloudFormation outputs" .-> YAML
-
-    subgraph DBX["Databricks account - owned by Terraform"]
-        direction TB
-        subgraph WS["Classic workspace - Enterprise tier"]
-            CLASSIC["Classic compute in spoke VPC<br/>network + PAS + credentials + root storage"]
-            SERVERLESS["Serverless compute<br/>Databricks-managed plane"]
-        end
-        UC["Unity Catalog metastore"]
-        POLICY["Network policy + NCC<br/>serverless egress control"]
+    subgraph DBX["Databricks account · owned by Terraform"]
+        CP["Workspace control plane<br/>Enterprise · public access off"]:::compute
     end
 
-    YAML --> WS
-    BE_VPCE -- "data plane traffic" --> CLASSIC
-    FE_VPCE -- "user and API traffic" --> WS
-    CLASSIC -- "internet egress" --> FW
-    SERVERLESS -- "egress" --> POLICY
-    WS --- UC
+    INTERNET["Allowlisted internet destinations"]:::external
+
+    USERS -- "HTTPS · UI and API" --> FE_VPCE
+    FE_VPCE -- "front-end PrivateLink" --> CP
+    CLASSIC --> BE_VPCE
+    BE_VPCE -- "back-end PrivateLink" --> CP
+    CLASSIC -- "egress" --> TGW
+    TGW --> FW
+    FW -- "inspected egress" --> INTERNET
+    CP -- "assume role · control plane" --> ROLE
+    CP -. "root storage" .- BUCKET
+
+    classDef external fill:#F7F7F7,stroke:#718096,stroke-width:1.5px,stroke-dasharray:5 4,color:#101C2D,rx:6,ry:6
+    classDef endpoint fill:#E8F7F8,stroke:#42C6D9,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef gateway fill:#FFFFFF,stroke:#233B55,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef compute fill:#FFFFFF,stroke:#D5E0E9,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef storage fill:#EAF2F8,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef identity fill:#FFFFFF,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef platform fill:#F7FAFC,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+
+    style AWS fill:#FFFFFF,stroke:#101C2D,stroke-width:2px,color:#101C2D
+    style DBX fill:#FFFFFF,stroke:#101C2D,stroke-width:2px,color:#101C2D
+    style HUB fill:#EAF2F8,stroke:#527C9F,stroke-width:1.5px,color:#101C2D
+    style SPOKE fill:#EAF2F8,stroke:#527C9F,stroke-width:1.5px,color:#101C2D
+    style SUBNETS fill:#F3F7FA,stroke:#9AABBA,stroke-width:1px,color:#101C2D
+
+    linkStyle 0,1,2,3,4,5,6 stroke:#42C6D9,stroke-width:2.5px
+    linkStyle 7 stroke:#718096,stroke-width:1.5px
+    linkStyle 8 stroke:#718096,stroke-width:1.5px,stroke-dasharray:2 4
 ```
+
+| Connector | Meaning |
+| --- | --- |
+| Solid cyan arrow | Primary traffic: user, PrivateLink, and egress paths |
+| Solid slate arrow | Control-plane action |
+| Dotted slate line | Logical dependency or configuration binding |
+| Dashed gray box | External system or step outside this repo |
+
+### Serverless egress
+
+Serverless compute runs in the Databricks-managed compute plane, so the hub firewall never sees its traffic. Egress is governed by the account network policy and, optionally, an NCC bound to the workspace.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
+flowchart LR
+    subgraph DBX["Databricks account · owned by Terraform"]
+        WS["Workspace<br/>Unity Catalog enabled"]:::compute
+        UC["Unity Catalog metastore<br/>created or existing"]:::platform
+        subgraph SLS["Serverless compute plane · Databricks-managed · not routed through the hub firewall"]
+            SERVERLESS["Serverless compute<br/>SQL warehouses · notebooks · jobs"]:::compute
+            POLICY["Account network policy<br/>restricted · DRY_RUN then ENFORCED"]:::gateway
+            NCC["Network connectivity config<br/>optional"]:::gateway
+        end
+    end
+
+    DNS["Allowlisted DNS names"]:::external
+    S3DEST["Allowlisted S3 buckets"]:::external
+
+    WS -- "runs workloads" --> SERVERLESS
+    SERVERLESS -- "egress" --> POLICY
+    POLICY -- "allowed" --> DNS
+    POLICY -- "allowed" --> S3DEST
+    WS -. "metastore assignment" .- UC
+    WS -. "workspace network option" .- POLICY
+    WS -. "NCC binding · optional" .- NCC
+
+    classDef external fill:#F7F7F7,stroke:#718096,stroke-width:1.5px,stroke-dasharray:5 4,color:#101C2D,rx:6,ry:6
+    classDef endpoint fill:#E8F7F8,stroke:#42C6D9,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef gateway fill:#FFFFFF,stroke:#233B55,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef compute fill:#FFFFFF,stroke:#D5E0E9,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef storage fill:#EAF2F8,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef identity fill:#FFFFFF,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef platform fill:#F7FAFC,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+
+    style DBX fill:#FFFFFF,stroke:#101C2D,stroke-width:2px,color:#101C2D
+    style SLS fill:#F7FAFC,stroke:#527C9F,stroke-width:1.5px,stroke-dasharray:5 4,color:#101C2D
+
+    linkStyle 0 stroke:#718096,stroke-width:1.5px
+    linkStyle 1,2,3 stroke:#42C6D9,stroke-width:2.5px
+    linkStyle 4,5,6 stroke:#718096,stroke-width:1.5px,stroke-dasharray:2 4
+```
+
 
 | Resource | Owner | Source of Terraform input |
 | --- | --- | --- |
@@ -61,15 +129,26 @@ No AWS Terraform provider or CloudFormation/SSM lookup is used by these stacks. 
 ## Deployment order
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#42C6D9", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 32, "rankSpacing": 40, "padding": 16}}}%%
 flowchart TB
-    A["1. aws_policies<br/>render IAM and bucket policy JSON"] --> B["CloudFormation team<br/>creates AWS resources"]
-    B --> C["Copy outputs into aws.yml"]
-    C --> D["2. account_regional<br/>metastore, NCC, network policies"]
-    D --> E["Copy IDs into workspace.yml<br/>and serverless.yml"]
-    E --> F["3. workspace<br/>create workspace"]
-    F --> G["Copy workspace_url into<br/>workspace_settings.yml"]
-    G --> H["4. workspace_config<br/>security settings, SQL warehouses"]
-    H --> I["5. Serverless smoke test"]
+    S1["1 · aws_policies<br/>render IAM and bucket policy JSON"]:::tf
+    S2["CloudFormation team<br/>creates AWS resources · out of scope"]:::external
+    S3["Copy CloudFormation outputs<br/>into aws.yml"]:::manual
+    S4["2 · account_regional<br/>metastore · NCC · network policies"]:::tf
+    S5["Copy IDs into<br/>workspace.yml and serverless.yml"]:::manual
+    S6["3 · workspace<br/>create the workspace"]:::tf
+    S7["Copy workspace_url into<br/>workspace_settings.yml"]:::manual
+    S8["4 · workspace_config<br/>security settings · SQL warehouses"]:::tf
+    S9["5 · Serverless smoke test<br/>SQL statement and job run"]:::healthy
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+
+    classDef tf fill:#FFFFFF,stroke:#527C9F,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+    classDef manual fill:#F1F5F8,stroke:#718096,stroke-width:1px,color:#233B55,rx:6,ry:6
+    classDef external fill:#F7F7F7,stroke:#718096,stroke-width:1.5px,stroke-dasharray:5 4,color:#101C2D,rx:6,ry:6
+    classDef healthy fill:#EAF6F0,stroke:#6CBF98,stroke-width:1.5px,color:#101C2D,rx:6,ry:6
+
+    linkStyle default stroke:#42C6D9,stroke-width:2px
 ```
 
 1. **Render CloudFormation policy JSON.** `aws_policies` uses a local backend and does not need AWS credentials or account API authentication. Review and provide the generated policy files to the CloudFormation team:
