@@ -6,30 +6,44 @@ The sample is a classic (hybrid) Enterprise workspace with backend and frontend 
 
 ## Architecture and ownership
 
-```text
-                    CloudFormation-owned AWS account
-                    ┌──────────────────────────────────────────┐
-                    │                                          │
-                    │  Spoke VPC ── TGW ── Hub VPC / firewall  │
-                    │      │                  │                │
-                    │      ├─ private subnets  └─ frontend REST│
-                    │      ├─ security group      VPC endpoint  │
-                    │      ├─ root S3 bucket                   │
-                    │      └─ cross-account IAM role           │
-                    │                                          │
-                    └───────────────┬──────────────────────────┘
-                                    │ literal IDs in aws.yml
-                  ┌─────────────────┴─────────────────────┐
-                  │                                       │
-       backend REST + SCC relay                  frontend REST
-       (workspace data plane)                   (UI/API access)
-                  │                                       │
-          ┌───────▼───────────────────────────────────────▼──────┐
-          │ Databricks classic workspace                         │
-          │ VPC network + PAS + credentials + root storage       │
-          │                                                       │
-          │ Serverless compute ── network policy / NCC ── egress │
-          └───────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph AWS["AWS account - owned by CloudFormation"]
+        direction TB
+        subgraph SPOKE["Spoke VPC"]
+            SUBNETS["Private subnets"]
+            SG["Security group"]
+            BE_VPCE["Backend VPC endpoints<br/>REST API + SCC relay"]
+        end
+        subgraph HUB["Hub / transit VPC"]
+            FW["Network firewall"]
+            FE_VPCE["Frontend REST VPC endpoint<br/>UI and API access"]
+        end
+        TGW["Transit Gateway"]
+        BUCKET["Root S3 bucket"]
+        ROLE["Cross-account IAM role"]
+        SPOKE <--> TGW <--> HUB
+    end
+
+    YAML[/"Literal IDs in aws.yml"/]
+    AWS -. "CloudFormation outputs" .-> YAML
+
+    subgraph DBX["Databricks account - owned by Terraform"]
+        direction TB
+        subgraph WS["Classic workspace - Enterprise tier"]
+            CLASSIC["Classic compute in spoke VPC<br/>network + PAS + credentials + root storage"]
+            SERVERLESS["Serverless compute<br/>Databricks-managed plane"]
+        end
+        UC["Unity Catalog metastore"]
+        POLICY["Network policy + NCC<br/>serverless egress control"]
+    end
+
+    YAML --> WS
+    BE_VPCE -- "data plane traffic" --> CLASSIC
+    FE_VPCE -- "user and API traffic" --> WS
+    CLASSIC -- "internet egress" --> FW
+    SERVERLESS -- "egress" --> POLICY
+    WS --- UC
 ```
 
 | Resource | Owner | Source of Terraform input |
@@ -45,6 +59,18 @@ The sample is a classic (hybrid) Enterprise workspace with backend and frontend 
 No AWS Terraform provider or CloudFormation/SSM lookup is used by these stacks. Workspace and account state use separate Terraform roots.
 
 ## Deployment order
+
+```mermaid
+flowchart TB
+    A["1. aws_policies<br/>render IAM and bucket policy JSON"] --> B["CloudFormation team<br/>creates AWS resources"]
+    B --> C["Copy outputs into aws.yml"]
+    C --> D["2. account_regional<br/>metastore, NCC, network policies"]
+    D --> E["Copy IDs into workspace.yml<br/>and serverless.yml"]
+    E --> F["3. workspace<br/>create workspace"]
+    F --> G["Copy workspace_url into<br/>workspace_settings.yml"]
+    G --> H["4. workspace_config<br/>security settings, SQL warehouses"]
+    H --> I["5. Serverless smoke test"]
+```
 
 1. **Render CloudFormation policy JSON.** `aws_policies` uses a local backend and does not need AWS credentials or account API authentication. Review and provide the generated policy files to the CloudFormation team:
 
@@ -89,8 +115,8 @@ No AWS Terraform provider or CloudFormation/SSM lookup is used by these stacks. 
 5. **Smoke test serverless.** From a machine that can route to the workspace host, run the script using an existing serverless SQL warehouse:
 
    ```bash
-   DATABRICKS_HOST="$databricks_ws" \
-   DATABRICKS_TOKEN="$databricks_pat" \
+   DATABRICKS_HOST="https://<workspace-host>" \
+   DATABRICKS_TOKEN="<token>" \
    ./scripts/smoke_test_serverless.sh --warehouse-name serverless-default
    ```
 
