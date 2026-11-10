@@ -7,19 +7,19 @@ The sample is a classic (hybrid) Enterprise workspace with backend and frontend 
 ## Architecture and ownership
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
+%%{init: {"theme": "base", "fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "themeVariables": {"fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF", "secondaryColor": "#F7FAFC", "secondaryTextColor": "#233B55", "secondaryBorderColor": "#9DC8E5", "tertiaryColor": "#FFFFFF", "textColor": "#101C2D"}, "flowchart": {"curve": "linear", "wrappingWidth": 360, "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
 flowchart TB
     USERS["Users and Terraform runner<br/>on the private network"]:::external
 
-    subgraph AWS["AWS account · owned by CloudFormation"]
+    subgraph AWS["CloudFormation-owned AWS"]
         subgraph HUB["Hub VPC"]
             FE_VPCE["Front-end REST VPC endpoint<br/>Assumption: hub or transit VPC"]:::endpoint
             FW["Network firewall"]:::gateway
         end
         TGW["Transit Gateway"]:::gateway
         subgraph SPOKE["Spoke VPC"]
-            subgraph SUBNETS["Private subnets · security group"]
-                CLASSIC["Classic compute clusters<br/>no public IP"]:::compute
+            subgraph SUBNETS["Private subnets"]
+                CLASSIC["Classic compute clusters<br/>security group · no public IP"]:::compute
             end
             BE_VPCE["Back-end VPC endpoints<br/>REST API · SCC relay"]:::endpoint
         end
@@ -27,7 +27,7 @@ flowchart TB
         ROLE["Cross-account IAM role"]:::identity
     end
 
-    subgraph DBX["Databricks account · owned by Terraform"]
+    subgraph DBX["Terraform-owned Databricks"]
         CP["Workspace control plane<br/>Enterprise · public access off"]:::compute
     end
 
@@ -74,13 +74,13 @@ flowchart TB
 Serverless compute runs in the Databricks-managed compute plane, so the hub firewall never sees its traffic. Egress is governed by the account network policy and, optionally, an NCC bound to the workspace.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
+%%{init: {"theme": "base", "fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "themeVariables": {"fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#718096", "clusterBkg": "#F7FAFC", "clusterBorder": "#233B55", "titleColor": "#101C2D", "edgeLabelBackground": "#FFFFFF", "secondaryColor": "#F7FAFC", "secondaryTextColor": "#233B55", "secondaryBorderColor": "#9DC8E5", "tertiaryColor": "#FFFFFF", "textColor": "#101C2D"}, "flowchart": {"curve": "linear", "wrappingWidth": 360, "nodeSpacing": 40, "rankSpacing": 56, "padding": 16}}}%%
 flowchart LR
-    subgraph DBX["Databricks account · owned by Terraform"]
+    subgraph DBX["Terraform-owned Databricks"]
         WS["Workspace<br/>Unity Catalog enabled"]:::compute
         UC["Unity Catalog metastore<br/>created or existing"]:::platform
-        subgraph SLS["Serverless compute plane · Databricks-managed · not routed through the hub firewall"]
-            SERVERLESS["Serverless compute<br/>SQL warehouses · notebooks · jobs"]:::compute
+        subgraph SLS["Serverless compute plane"]
+            SERVERLESS["Serverless compute<br/>Databricks-managed · bypasses hub firewall"]:::compute
             POLICY["Account network policy<br/>restricted · DRY_RUN then ENFORCED"]:::gateway
             NCC["Network connectivity config<br/>optional"]:::gateway
         end
@@ -129,7 +129,7 @@ No AWS Terraform provider or CloudFormation/SSM lookup is used by these stacks. 
 ## Deployment order
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Inter, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#42C6D9", "edgeLabelBackground": "#FFFFFF"}, "flowchart": {"curve": "linear", "nodeSpacing": 32, "rankSpacing": 40, "padding": 16}}}%%
+%%{init: {"theme": "base", "fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "themeVariables": {"fontFamily": "Open Sans, Arial, Helvetica, sans-serif", "fontSize": "14px", "background": "#FFFFFF", "primaryColor": "#FFFFFF", "primaryTextColor": "#101C2D", "primaryBorderColor": "#D5E0E9", "lineColor": "#42C6D9", "edgeLabelBackground": "#FFFFFF", "secondaryColor": "#F7FAFC", "secondaryTextColor": "#233B55", "secondaryBorderColor": "#9DC8E5", "tertiaryColor": "#FFFFFF", "textColor": "#101C2D"}, "flowchart": {"curve": "linear", "wrappingWidth": 360, "nodeSpacing": 32, "rankSpacing": 40, "padding": 16}}}%%
 flowchart TB
     S1["1 · aws_policies<br/>render IAM and bucket policy JSON"]:::tf
     S2["CloudFormation team<br/>creates AWS resources · out of scope"]:::external
